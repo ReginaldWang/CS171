@@ -1,6 +1,4 @@
 import asyncio
-import random
-import json
 
 NW_HOST = "localhost"
 NW_PORT = 9999
@@ -8,40 +6,47 @@ NW_PORT = 9999
 SERVER_HOST = "localhost"
 SERVER_PORT = 8000
 
-async def forward_message(msg, writer):
-    delay = random.uniform(0.0001, 0.0005)  
-    await asyncio.sleep(delay)
-    writer.write(msg)
-    await writer.drain()
-
 async def handle_conn(reader, writer):
     addr = writer.get_extra_info("peername")
-    print(f"[NW] Client connected: {addr}")
+    print(f"[NW] Received Connection from {addr}")
 
     while True:
         data = await reader.read(1024)
         if not data:
-            print(f"[NW] Client {addr} disconnected")
+            print("[NW] Connection Closed")
             break
 
-        srv_reader, srv_writer = await asyncio.open_connection(SERVER_HOST, SERVER_PORT)
-        await forward_message(data, srv_writer)
+        msg = data.decode()
+        print(f"[NW] Message: {msg}")
 
-        server_response = await srv_reader.read(1024)
+        writer.write(b"Message Received!")
 
-        await forward_message(server_response, writer)
+        reversed_msg = msg[::-1]
+        await asyncio.sleep(5)
 
-        srv_writer.close()
-        await srv_writer.wait_closed()
+        await tcp_client(reversed_msg, SERVER_HOST, SERVER_PORT)
+
+async def tcp_client(msg, host, port):
+    reader, writer = await asyncio.open_connection(host, port)
+
+    writer.write(msg.encode())
+    await writer.drain()
+
+    data = await reader.read(1024)
+    print(f"[NW] Server Response: {data.decode()}")
+
+    writer.close()
+    await writer.wait_closed()
 
 async def main():
-    server = await asyncio.start_server(handle_conn, NW_HOST, NW_PORT)
-    addr = server.sockets[0].getsockname()
-    print(f"[NW] Listening on {NW_HOST}:{NW_PORT}")
+    srv = await asyncio.start_server(handle_conn, NW_HOST, NW_PORT)
+    addr = srv.sockets[0].getsockname()
 
-    async with server:
-        await server.serve_forever()
+    print(f"[NW] ### LISTENING ON {NW_HOST}:{NW_PORT} ###")
 
+    async with srv:
+        await srv.serve_forever()
 
 if __name__ == "__main__":
     asyncio.run(main())
+
