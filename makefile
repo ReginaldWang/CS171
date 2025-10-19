@@ -7,10 +7,9 @@ rho ?= 1e-2
 run_project:
 	python3 server.py &
 	python3 network.py &
-	sleep 2
+	sleep 0.5
 	python3 client.py --d $(d) --epsilon_max $(epsilon_max) --rho $(rho)
 	@make clean
 
 clean:
-	@pkill -f server.py || true
-	@pkill -f network.py || true
+	@taskkill /F /IM python.exe >nul 2>&1 || true
